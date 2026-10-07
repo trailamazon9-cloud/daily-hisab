@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily Hisab — Professional</title>
+<style>
+:root{--navy:#0f2742;--blue:#1769aa;--blue2:#eaf4ff;--green:#138a55;--red:#c73b32;--orange:#c98213;--bg:#f5f7fb;--card:#fff;--text:#17212b;--muted:#6b7785;--border:#e2e8f0;--shadow:0 8px 28px rgba(15,39,66,.08)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Arial,"Noto Sans Bengali",sans-serif;background:var(--bg);color:var(--text)}
+button,input,select{font:inherit}
+button{border:0;cursor:pointer}
+.hidden{display:none!important}
+.topbar{height:66px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:20;box-shadow:0 3px 14px #0002}
+.brand{font-size:21px;font-weight:800;letter-spacing:.3px}
+.brand small{font-size:11px;font-weight:500;opacity:.7;margin-left:7px}
+.user-area{display:flex;align-items:center;gap:10px;font-size:13px}
+.avatar{width:38px;height:38px;border-radius:50%;background:#2d78b8;display:grid;place-items:center;font-weight:700;overflow:hidden;border:2px solid #ffffff55}.avatar img{width:100%;height:100%;object-fit:cover}.profile-card{max-width:650px}.profile-preview{display:flex;align-items:center;gap:18px;margin-bottom:20px}.profile-photo{width:110px;height:110px;border-radius:50%;background:#eaf4ff;border:3px solid #d6e7f7;display:grid;place-items:center;overflow:hidden;font-size:36px;font-weight:800;color:#1769aa}.profile-photo img{width:100%;height:100%;object-fit:cover}.profile-note{color:var(--muted);font-size:13px}.profile-name-row{display:flex;align-items:center;gap:8px}.edit-name{background:#eef2f6;color:#1769aa;padding:6px 10px;border-radius:7px;font-size:12px;font-weight:700}
+.layout{display:flex;min-height:calc(100vh - 66px)}
+.sidebar{width:225px;background:#fff;border-right:1px solid var(--border);padding:20px 13px}
+.nav-title{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;padding:0 10px 8px}
+.navbtn{width:100%;text-align:left;background:transparent;color:#415164;padding:12px 13px;border-radius:9px;margin-bottom:5px;font-weight:600}
+.navbtn:hover,.navbtn.active{background:var(--blue2);color:var(--blue)}
+.main{flex:1;max-width:1400px;margin:auto;padding:28px;width:100%}
+.page-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:20px}
+.page-head h1{font-size:26px;margin:0 0 4px}.page-head p{margin:0;color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:22px;margin-bottom:18px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:13px;padding:18px;box-shadow:var(--shadow)}
+.stat .label{color:var(--muted);font-size:13px}.stat .value{font-size:25px;font-weight:800;margin-top:8px}.stat.blue{border-left:4px solid var(--blue)}.stat.green{border-left:4px solid var(--green)}.stat.red{border-left:4px solid var(--red)}.stat.orange{border-left:4px solid var(--orange)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.field label{display:block;font-size:13px;font-weight:700;margin-bottom:7px;color:#334155}
+input,select{width:100%;border:1px solid #d4dce6;background:#fff;border-radius:9px;padding:11px 12px;outline:none;transition:.15s}
+input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1769aa18}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+.btn{padding:10px 15px;border-radius:9px;font-weight:700}.primary{background:var(--blue);color:#fff}.success{background:var(--green);color:#fff}.danger{background:var(--red);color:#fff}.dark{background:#334155;color:#fff}.light{background:#eef2f6;color:#334155}.warning{background:var(--orange);color:#fff}
+.btn:hover{filter:brightness(.96)}
+.notice{padding:10px 12px;border-radius:9px;margin-top:12px;font-size:13px;font-weight:600}.notice.error{background:#fff0ee;color:var(--red)}.notice.ok{background:#eaf8f1;color:var(--green)}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:900px}th,td{padding:11px 9px;border-bottom:1px solid var(--border);text-align:center;font-size:13px}th{background:#f8fafc;color:#475569;font-size:12px}tbody tr:hover{background:#fafcff}
+.badge{display:inline-block;border-radius:20px;padding:5px 9px;font-size:11px;font-weight:800}.take{background:#e7f7ee;color:#137044}.give{background:#ffebe9;color:#a72d26}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.person{position:relative;border:1px solid #e1e8f0;border-radius:16px;padding:0;background:#fff;overflow:hidden;box-shadow:0 7px 22px rgba(15,39,66,.07);transition:transform .18s,box-shadow .18s}
+.person:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(15,39,66,.11)}
+.person h3{margin:0;padding:17px 18px;background:linear-gradient(135deg,#f7fbff,#eef6fd);font-size:17px;color:#102d49;border-bottom:1px solid #e1e8f0}
+.money{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;color:#64748b;font-size:13px;border-bottom:1px solid #edf1f5}
+.money b{font-size:16px;color:#243447}
+.person .result{margin:14px 16px 16px;padding:14px 15px;border-radius:11px;background:#f7f9fc;font-weight:800;font-size:15px;color:#243447;border:1px solid #edf1f5}
+.person .result:before{content:'●';display:inline-block;margin-right:8px;font-size:9px;color:#1769aa}
+.summary-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.summary-count{font-size:12px;font-weight:700;color:#64748b;background:#f1f5f9;border-radius:20px;padding:6px 10px}
+.status-take{background:#ecf9f2!important;color:#117447!important;border-color:#d5f0e1!important}
+.status-take:before{color:#138a55!important}
+.status-give{background:#fff0ee!important;color:#ae332c!important;border-color:#f5d8d4!important}
+.status-give:before{color:#c73b32!important}
+.status-even{background:#f1f5f9!important;color:#475569!important}
+.status-even:before{color:#64748b!important}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.toolbar .field{min-width:200px;flex:1}
+.login-screen{min-height:100vh;background:linear-gradient(135deg,#0f2742,#1769aa);display:grid;place-items:center;padding:20px}
+.login-card{width:min(430px,100%);background:#fff;border-radius:18px;padding:30px;box-shadow:0 20px 60px #0004}.login-logo{text-align:center;margin-bottom:24px}.login-logo .circle{width:58px;height:58px;margin:auto;background:var(--navy);color:#fff;border-radius:15px;display:grid;place-items:center;font-size:25px;font-weight:800}.login-logo h1{margin:12px 0 4px;font-size:24px}.login-logo p{margin:0;color:var(--muted);font-size:13px}
+.link{background:none;color:var(--blue);text-decoration:underline;padding:5px;font-size:13px}.center{text-align:center}
+.admin-section{border-top:1px solid var(--border);padding-top:20px;margin-top:22px}.user-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin:7px 0}
+.empty{text-align:center;padding:30px;color:var(--muted)}
+@media(max-width:900px){.sidebar{width:190px}.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:650px){.layout{display:block}.sidebar{width:100%;border-right:0;border-bottom:1px solid var(--border);display:flex;gap:5px;overflow:auto;padding:9px}.nav-title{display:none}.navbtn{white-space:nowrap;width:auto}.main{padding:16px}.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.topbar{padding:0 15px}.user-area span{display:none}.page-head{align-items:flex-start}.page-head h1{font-size:22px}}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="circle">৳</div>
+      <h1>Daily Hisab</h1><p>Professional হিসাব ব্যবস্থাপনা</p>
+    </div>
+    <div class="field"><label>User ID</label><input id="loginId" autocomplete="username" placeholder="User ID"></div>
+    <div class="field" style="margin-top:13px"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Password"></div>
+    <button class="btn primary" style="width:100%;margin-top:17px" onclick="login()">LOGIN</button>
+    <div id="loginMsg"></div>
+    <div class="center" style="margin-top:13px"><button class="link" onclick="showForgot()">Forgot Admin ID / Password?</button></div>
+  </div>
+</div>
+
+<div id="forgotScreen" class="login-screen hidden">
+  <div class="login-card">
+    <div class="login-logo"><div class="circle">↻</div><h1>Admin Recovery</h1><p>Recovery Code দিয়ে Admin reset করুন</p></div>
+    <div class="field"><label>Recovery Code</label><input id="recoveryCode" type="password"></div>
+    <div class="field" style="margin-top:13px"><label>New Admin ID</label><input id="newAdminId"></div>
+    <div class="field" style="margin-top:13px"><label>New Admin Password</label><input id="newAdminPass" type="password"></div>
+    <button class="btn success" style="width:100%;margin-top:17px" onclick="recoverAdmin()">RESET ADMIN</button>
+    <div id="forgotMsg"></div>
+    <div class="center" style="margin-top:12px"><button class="link" onclick="showLogin()">Back to Login</button></div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+<header class="topbar">
+  <div class="brand">DAILY HISAB <small>PRO</small></div>
+  <div class="user-area"><div class="avatar" id="avatar">A</div><div style="display:flex;flex-direction:column;line-height:1.2"><strong id="headerDisplayName">User</strong><small id="currentUser" style="opacity:.72"></small></div><button class="btn light" onclick="checkForUpdate()">↻ UPDATE</button><button class="btn danger" onclick="logout()">Logout</button></div>
+</header>
+<div class="layout">
+<aside class="sidebar">
+  <div class="nav-title">MENU</div>
+  <button id="navEntry" class="navbtn active" onclick="showPage('entry')">＋ নতুন হিসাব</button>
+  <button id="navHisab" class="navbtn" onclick="showPage('hisab')">▤ সব হিসাব</button>
+  <button id="navProfile" class="navbtn" onclick="showPage('profile')">◉ Profile</button>
+  <button id="navUpdate" class="navbtn" onclick="showPage('update')">↻ Update</button>
+  <button id="navAdmin" class="navbtn hidden" onclick="showPage('admin')">⚙ Admin Panel</button>
+</aside>
+<main class="main">
+
+
+<section id="updatePage" class="hidden">
+<div class="page-head"><div><h1>Software Update</h1><p>নতুন version আছে কিনা পরীক্ষা করুন</p></div></div>
+<div class="card update-panel">
+  <h3 style="margin-top:0">Daily Hisab Update</h3>
+  <div class="version-box"><b>Current Version:</b> <span id="currentVersionText">v1.0.0</span><br><span class="profile-note">আপনার বর্তমান software version</span></div>
+  <button class="btn primary" onclick="checkForUpdate(true)">↻ Check for Update</button>
+  <div id="updateMsg" style="margin-top:12px"></div>
+  <div id="updateDetails"></div>
+</div>
+</section>
+<section id="entryPage">
+<div class="page-head"><div><h1>নতুন হিসাব</h1><p>দৈনিক লেনদেন দ্রুত ও সহজে সংরক্ষণ করুন</p></div></div>
+<div class="card">
+<div class="grid">
+<div class="field"><label>নাম</label><input id="name" placeholder="ব্যক্তির নাম"></div>
+<div class="field"><label>তারিখ</label><input id="date" type="date"></div>
+<div class="field"><label>সময়</label><input id="time" type="time"></div>
+<div class="field"><label>টাকার পরিমাণ</label><input id="amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+<div class="field"><label>কারণ / বিবরণ</label><input id="reason" placeholder="যেমন: ধার, বাজার, বেতন"></div>
+<div class="field"><label>হিসাবের ধরন</label><select id="type"><option value="take">নিয়েছি (+)</option><option value="give">দিয়েছি (-)</option></select></div>
+</div>
+<div class="actions"><button class="btn success" onclick="saveEntry()">✓ হিসাব সংরক্ষণ</button><button class="btn light" onclick="clearForm()">Clear</button><button class="btn primary" onclick="showPage('hisab')">হিসাব দেখুন</button></div>
+<div id="entryMsg"></div>
+</div>
+<div class="card"><h3 style="margin-top:0">দ্রুত ব্যক্তির হিসাব</h3><input id="quickSearch" oninput="renderQuick()" placeholder="নাম লিখে সার্চ করুন..."><div id="quickResult" style="margin-top:12px"></div></div>
+</section>
+
+<section id="hisabPage" class="hidden">
+<div class="page-head"><div><h1>হিসাবের রিপোর্ট</h1><p>সব লেনদেন ও ব্যক্তিভিত্তিক হিসাব</p></div></div>
+<div id="stats" class="stats"></div>
+<div class="card">
+<div class="toolbar">
+<div class="field"><label>নাম</label><input id="filterName" oninput="renderAll()" placeholder="সব নাম"></div>
+<div class="field"><label>তারিখ</label><input id="filterDate" type="date" onchange="renderAll()"></div>
+<button class="btn light" onclick="clearFilters()">Filter Clear</button>
+</div>
+<div class="table-wrap" style="margin-top:18px"><table><thead><tr><th>#</th><th>নাম</th><th>তারিখ</th><th>সময়</th><th>পরিমাণ</th><th>ধরন</th><th>বিবরণ</th><th>চলতি হিসাব</th><th>Action</th></tr></thead><tbody id="entryTable"></tbody></table></div>
+</div>
+<div class="card"><div class="summary-title"><h2 style="margin:0">ব্যক্তিভিত্তিক সারাংশ</h2><span id="summaryCount" class="summary-count">0 জন</span></div><div id="summary" class="summary-grid" style="margin-top:18px"></div></div>
+</section>
+
+
+<section id="profilePage" class="hidden">
+<div class="page-head"><div><h1>My Profile</h1><p>আপনার profile photo ও account information</p></div></div>
+<div class="card profile-card">
+  <div class="profile-preview">
+    <div class="profile-photo" id="profilePhoto">A</div>
+    <div>
+  <div class="profile-name-row"><h2 id="profileName" style="margin:0 0 6px"></h2><button class="edit-name" onclick="editProfileName()">✎ Edit</button></div>
+  <div class="profile-note" id="profileRole"></div>
+</div>
+  </div>
+  <div class="field">
+    <label>Profile Name</label>
+    <div style="display:flex;gap:8px">
+      <input id="profileNameInput" placeholder="আপনার নাম">
+      <button class="btn primary" onclick="saveProfileName()">Save</button>
+    </div>
+    <div class="profile-note" style="margin-top:7px">এই নামটি Profile-এ দেখা যাবে। Login ID পরিবর্তন হবে না।</div>
+  </div>
+  <div class="field" style="margin-top:16px">
+    <label>Profile Picture</label>
+    <input id="profileFile" type="file" accept="image/*" onchange="previewProfile(event)">
+    <div class="profile-note" style="margin-top:7px">JPG, PNG বা WebP ছবি দিন। ছবি এই browser-এই সংরক্ষিত থাকবে।</div>
+  </div>
+  <div class="actions">
+    <button class="btn success" onclick="saveProfilePhoto()">✓ Save Photo</button>
+    <button class="btn light" onclick="removeProfilePhoto()">Remove Photo</button>
+  </div>
+  <div id="profileMsg"></div>
+</div>
+</section>
+
+<section id="adminPage" class="hidden">
+<div class="page-head"><div><h1>Admin Panel</h1><p>User, password এবং recovery management</p></div></div>
+<div class="card">
+<h3 style="margin-top:0">Admin ID / Password</h3>
+<div class="grid"><div class="field"><label>New Admin ID</label><input id="adminIdNew"></div><div class="field"><label>New Password</label><input id="adminPassNew" type="password"></div></div>
+<button class="btn primary" style="margin-top:15px" onclick="changeAdmin()">Save Admin</button><div id="adminMsg"></div>
+<div class="admin-section"><h3>Recovery Code</h3><div class="field"><label>New Recovery Code</label><input id="recoveryNew"></div><button class="btn warning" style="margin-top:12px" onclick="changeRecovery()">Save Recovery Code</button></div>
+<div class="admin-section"><h3>New User Create</h3><div class="grid"><div class="field"><label>User ID</label><input id="userIdNew"></div><div class="field"><label>Password</label><input id="userPassNew" type="password"></div></div><button class="btn success" style="margin-top:12px" onclick="createUser()">＋ Create User</button></div>
+<div class="admin-section"><h3>Existing Users</h3><div id="userList"></div></div>
+</div>
+</section>
+
+</main></div></div>
+
+<script>
+const UK='daily_pro_users',DK='daily_pro_data',RK='daily_pro_recovery',SK='daily_pro_session';
+let editId=null;
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function setNow(){let d=new Date();$('date').value=d.toISOString().slice(0,10);$('time').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function users(){return JSON.parse(localStorage.getItem(UK)||'[]')}
+function data(){return JSON.parse(localStorage.getItem(DK)||'[]')}
+function init(){let u=users();if(!u.length){u=[{id:'admin',pass:'1234',role:'admin'}];localStorage.setItem(UK,JSON.stringify(u))}if(!localStorage.getItem(RK))localStorage.setItem(RK,'DH-RECOVER-2026');let s=localStorage.getItem(SK),me=u.find(x=>x.id===s);if(me)openApp(me);else showLogin()}
+function showLogin(){$('loginScreen').classList.remove('hidden');$('forgotScreen').classList.add('hidden');$('app').classList.add('hidden')}
+function showForgot(){$('loginScreen').classList.add('hidden');$('forgotScreen').classList.remove('hidden');$('app').classList.add('hidden')}
+function login(){let id=$('loginId').value.trim(),pass=$('loginPass').value,me=users().find(x=>x.id===id&&x.pass===pass);if(!me){$('loginMsg').className='notice error';$('loginMsg').textContent='User ID অথবা Password ভুল।';return}localStorage.setItem(SK,me.id);openApp(me)}
+function openApp(me){$('loginScreen').classList.add('hidden');$('forgotScreen').classList.add('hidden');$('app').classList.remove('hidden');$('currentUser').textContent=me.role==='admin'?'ADMIN':'USER';$('headerDisplayName').textContent=getDisplayNameFor(me.id);$('avatar').textContent=me.id.charAt(0).toUpperCase();$('navAdmin').classList.toggle('hidden',me.role!=='admin');renderAvatar();showPage('entry')}
+function logout(){localStorage.removeItem(SK);showLogin()}
+function recoverAdmin(){let code=$('recoveryCode').value.trim(),id=$('newAdminId').value.trim(),pass=$('newAdminPass').value;if(code!==localStorage.getItem(RK)){$('forgotMsg').className='notice error';$('forgotMsg').textContent='Recovery Code ভুল।';return}if(!id||!pass){$('forgotMsg').className='notice error';$('forgotMsg').textContent='নতুন Admin ID ও Password দিন।';return}let u=users().filter(x=>x.role!=='admin');u.unshift({id,pass,role:'admin'});localStorage.setItem(UK,JSON.stringify(u));$('forgotMsg').className='notice ok';$('forgotMsg').textContent='Admin reset হয়েছে। নতুন ID দিয়ে Login করুন।';setTimeout(showLogin,900)}
+function showPage(page){$('entryPage').classList.toggle('hidden',page!=='entry');$('hisabPage').classList.toggle('hidden',page!=='hisab');$('profilePage').classList.toggle('hidden',page!=='profile');$('updatePage').classList.toggle('hidden',page!=='update');$('adminPage').classList.toggle('hidden',page!=='admin');$('navEntry').classList.toggle('active',page==='entry');$('navHisab').classList.toggle('active',page==='hisab');$('navProfile').classList.toggle('active',page==='profile');$('navUpdate').classList.toggle('active',page==='update');$('navAdmin').classList.toggle('active',page==='admin');if(page==='entry'){setNow();renderQuick()}if(page==='hisab')renderAll();if(page==='profile')renderProfile();if(page==='update'){updateCurrentVersionUI();}if(page==='admin'){let me=users().find(x=>x.id===localStorage.getItem(SK));if(!me||me.role!=='admin'){showPage('entry');return}$('adminIdNew').value=me.id;$('adminPassNew').value='';$('recoveryNew').value=localStorage.getItem(RK)||'';renderUsers()}}
+function saveEntry(){let n=$('name').value.trim(),a=Number($('amount').value);if(!n||!a||a<0){$('entryMsg').className='notice error';$('entryMsg').textContent='নাম ও সঠিক টাকার পরিমাণ দিন।';return}let d=data(),x={id:editId||Date.now(),name:n,date:$('date').value,time:$('time').value,amount:a,reason:$('reason').value.trim(),type:$('type').value};if(editId){let i=d.findIndex(q=>q.id==editId);if(i>=0)d[i]=x}else d.push(x);localStorage.setItem(DK,JSON.stringify(d));editId=null;$('entryMsg').className='notice ok';$('entryMsg').textContent='হিসাব সফলভাবে সংরক্ষণ হয়েছে।';clearForm(false);renderQuick()}
+function clearForm(show=true){$('name').value='';$('amount').value='';$('reason').value='';$('type').value='take';editId=null;setNow();if(show)$('entryMsg').textContent=''}
+function person(d,n){let take=0,give=0;d.filter(x=>x.name.trim().toLowerCase()===n.trim().toLowerCase()).forEach(x=>x.type==='take'?take+=Number(x.amount):give+=Number(x.amount));return{take,give,balance:take-give}}
+function renderAll(){let d=data(),nf=$('filterName').value.trim().toLowerCase(),df=$('filterDate').value,rows=d.filter(x=>(!nf||x.name.toLowerCase().includes(nf))&&(!df||x.date===df)),run={};$('entryTable').innerHTML=rows.length?rows.map((x,i)=>{let k=x.name.toLowerCase();run[k]=(run[k]||0)+(x.type==='take'?Number(x.amount):-Number(x.amount));return `<tr><td>${i+1}</td><td><b>${esc(x.name)}</b></td><td>${x.date}</td><td>${x.time}</td><td>৳${Number(x.amount).toFixed(2)}</td><td><span class="badge ${x.type==='take'?'take':'give'}">${x.type==='take'?'নিয়েছি (+)':'দিয়েছি (-)'}</span></td><td>${esc(x.reason)}</td><td>৳${run[k].toFixed(2)}</td><td><button class="btn primary" onclick="editEntry(${x.id})">Edit</button> <button class="btn danger" onclick="deleteEntry(${x.id})">Delete</button></td></tr>`}).join(''):'<tr><td colspan="9" class="empty">কোনো হিসাব পাওয়া যায়নি।</td></tr>';let totalTake=d.reduce((s,x)=>s+(x.type==='take'?Number(x.amount):0),0),totalGive=d.reduce((s,x)=>s+(x.type==='give'?Number(x.amount):0),0),names=[...new Set(d.map(x=>x.name))];$('stats').innerHTML=`<div class="stat blue"><div class="label">মোট লেনদেন</div><div class="value">${d.length}</div></div><div class="stat green"><div class="label">মোট নিয়েছি</div><div class="value">৳${totalTake.toFixed(2)}</div></div><div class="stat red"><div class="label">মোট দিয়েছি</div><div class="value">৳${totalGive.toFixed(2)}</div></div><div class="stat orange"><div class="label">মোট ব্যক্তি</div><div class="value">${names.length}</div></div>`;let sn=names.filter(n=>!nf||n.toLowerCase().includes(nf));$('summaryCount').textContent=sn.length+' জন';$('summary').innerHTML=sn.length?sn.map(n=>{let p=person(d,n),b=p.balance;let cls=b>0?'status-take':b<0?'status-give':'status-even';let txt=b>0?'নিয়েছি বেশি — দেব: ৳'+b.toFixed(2):b<0?'দিয়েছি বেশি — পাবো: ৳'+(-b).toFixed(2):'হিসাব সমান — ৳0.00';return `<div class="person"><h3>${esc(n)}</h3><div class="money"><span>মোট নিয়েছি</span><b>৳${p.take.toFixed(2)}</b></div><div class="money"><span>মোট দিয়েছি</span><b>৳${p.give.toFixed(2)}</b></div><div class="result ${cls}">${txt}</div></div>`}).join(''):'<div class="empty">কোনো ব্যক্তির হিসাব নেই।</div>'}
+function clearFilters(){$('filterName').value='';$('filterDate').value='';renderAll()}
+function editEntry(id){let x=data().find(a=>a.id==id);if(!x)return;showPage('entry');$('name').value=x.name;$('date').value=x.date;$('time').value=x.time;$('amount').value=x.amount;$('reason').value=x.reason||'';$('type').value=x.type;editId=id;$('entryMsg').className='notice ok';$('entryMsg').textContent='Edit mode — পরিবর্তন করে Save করুন।'}
+function deleteEntry(id){if(!confirm('এই হিসাবটি Delete করবেন?'))return;localStorage.setItem(DK,JSON.stringify(data().filter(x=>x.id!=id)));renderAll();renderQuick()}
+function renderQuick(){let q=$('quickSearch').value.trim().toLowerCase(),d=data();if(!q){$('quickResult').innerHTML='';return}let names=[...new Set(d.map(x=>x.name))].filter(n=>n.toLowerCase().includes(q));$('quickResult').innerHTML=names.length?names.map(n=>{let p=person(d,n),b=p.balance;return `<div class="person"><h3>${esc(n)}</h3><div class="money"><span>নিয়েছি</span><b>৳${p.take.toFixed(2)}</b></div><div class="money"><span>দিয়েছি</span><b>৳${p.give.toFixed(2)}</b></div><div class="result">${b>0?'দেব: ৳'+b.toFixed(2):b<0?'পাবো: ৳'+(-b).toFixed(2):'হিসাব সমান'}</div></div>`}).join(''):'<div class="empty">কিছু পাওয়া যায়নি।</div>'}
+
+
+const APP_VERSION='1.0.0';
+// Set this to your online update manifest URL when you publish updates.
+// Example: https://your-domain.com/daily-hisab-update.json
+const UPDATE_MANIFEST_URL='';
+function updateCurrentVersionUI(){if($('currentVersionText'))$('currentVersionText').textContent='v'+APP_VERSION}
+async function checkForUpdate(openPage=false){
+  if(openPage) showPage('update');
+  $('updateMsg').className='notice';
+  $('updateMsg').textContent='Update check চলছে...';
+  $('updateDetails').innerHTML='';
+  if(!UPDATE_MANIFEST_URL){
+    $('updateMsg').className='notice ok';
+    $('updateMsg').innerHTML='<span class="update-dot"></span>আপনার বর্তমান version <b>v'+APP_VERSION+'</b>। Online update server এখনো সেট করা হয়নি।';
+    $('updateDetails').innerHTML='<div class="version-box"><b>Auto Update Ready</b><ul class="release-list"><li>UPDATE button প্রস্তুত</li><li>Version checking system প্রস্তুত</li><li>Online manifest URL বসালেই নতুন version detect হবে</li></ul></div>';
+    return;
+  }
+  try{
+    const r=await fetch(UPDATE_MANIFEST_URL,{cache:'no-store'});
+    if(!r.ok) throw new Error('Update server response '+r.status);
+    const info=await r.json();
+    const latest=String(info.version||APP_VERSION).replace(/^v/,'');
+    if(compareVersions(latest,APP_VERSION)>0){
+      $('updateMsg').className='notice ok';
+      $('updateMsg').innerHTML='নতুন version পাওয়া গেছে: <b>v'+esc(latest)+'</b>';
+      let button=info.downloadUrl?'<a class="btn primary" style="display:inline-block;margin-top:12px;text-decoration:none;color:#fff" href="'+esc(info.downloadUrl)+'" target="_blank">Download Update</a>':'';
+      $('updateDetails').innerHTML='<div class="version-box"><b>New Version: v'+esc(latest)+'</b>'+(info.notes?'<div style="margin-top:7px">'+esc(info.notes)+'</div>':'')+button+'</div>';
+    }else{
+      $('updateMsg').className='notice ok';
+      $('updateMsg').textContent='আপনার software সর্বশেষ version-এ আছে।';
+    }
+  }catch(e){
+    $('updateMsg').className='notice error';
+    $('updateMsg').textContent='Update check করা যায়নি। Internet/Update URL পরীক্ষা করুন।';
+  }
+}
+function compareVersions(a,b){
+  let A=a.split('.').map(Number),B=b.split('.').map(Number),n=Math.max(A.length,B.length);
+  for(let i=0;i<n;i++){let x=A[i]||0,y=B[i]||0;if(x>y)return 1;if(x<y)return -1}return 0;
+}
+function getDisplayNameFor(id){return localStorage.getItem('daily_pro_profile_name_'+id)||id}
+function profileNameKey(){return 'daily_pro_profile_name_'+localStorage.getItem(SK)}
+function profileKey(){return 'daily_pro_photo_'+localStorage.getItem(SK)}
+function getDisplayName(){let id=localStorage.getItem(SK)||'';return localStorage.getItem(profileNameKey())||id}
+function renderAvatar(){let id=localStorage.getItem(SK)||'A',src=localStorage.getItem(profileKey()),a=$('avatar');a.innerHTML=src?'<img src="'+src+'" alt="Profile">':esc(getDisplayNameFor(id).charAt(0).toUpperCase());if($('headerDisplayName'))$('headerDisplayName').textContent=getDisplayNameFor(id)}
+function renderProfile(){let id=localStorage.getItem(SK)||'',me=users().find(x=>x.id===id),src=localStorage.getItem(profileKey()),p=$('profilePhoto'),display=getDisplayName();$('profileName').textContent=display;$('profileNameInput').value=display;$('profileRole').textContent=me&&me.role==='admin'?'ADMIN':'USER';p.innerHTML=src?'<img src="'+src+'" alt="Profile">':esc(display.charAt(0).toUpperCase())}
+function editProfileName(){$('profileNameInput').focus();$('profileNameInput').select()}
+function saveProfileName(){let n=$('profileNameInput').value.trim();if(!n){alert('Profile Name দিন।');return}localStorage.setItem(profileNameKey(),n);renderProfile();renderAvatar();$('profileMsg').className='notice ok';$('profileMsg').textContent='Profile Name save হয়েছে।'}
+function previewProfile(e){let f=e.target.files&&e.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){alert('শুধু image file দিন।');e.target.value='';return}let r=new FileReader();r.onload=()=>{$('profilePhoto').innerHTML='<img src="'+r.result+'" alt="Profile preview">';$('profileMsg').className='notice ok';$('profileMsg').textContent='Preview ready — Save Photo চাপুন।';$('profileFile').dataset.preview=r.result};r.readAsDataURL(f)}
+function saveProfilePhoto(){let src=$('profileFile').dataset.preview;if(!src){alert('আগে একটি ছবি নির্বাচন করুন।');return}try{localStorage.setItem(profileKey(),src);renderAvatar();renderProfile();$('profileFile').value='';delete $('profileFile').dataset.preview;$('profileMsg').className='notice ok';$('profileMsg').textContent='Profile photo save হয়েছে।'}catch(e){$('profileMsg').className='notice error';$('profileMsg').textContent='ছবিটি অনেক বড়। ছোট ছবি ব্যবহার করুন।'}}
+function removeProfilePhoto(){localStorage.removeItem(profileKey());$('profileFile').value='';delete $('profileFile').dataset.preview;renderAvatar();renderProfile();$('profileMsg').className='notice ok';$('profileMsg').textContent='Profile photo remove হয়েছে।'}
+function changeAdmin(){let id=$('adminIdNew').value.trim(),pass=$('adminPassNew').value;if(!id||!pass)return alert('Admin ID ও Password দিন।');let u=users(),i=u.findIndex(x=>x.id===localStorage.getItem(SK)&&x.role==='admin');if(i<0)return;if(u.some((x,j)=>j!==i&&x.id===id))return alert('এই ID আগে থেকেই আছে।');u[i].id=id;u[i].pass=pass;localStorage.setItem(UK,JSON.stringify(u));localStorage.setItem(SK,id);alert('Admin ID/Password পরিবর্তন হয়েছে।');openApp(u[i])}
+function changeRecovery(){let v=$('recoveryNew').value.trim();if(!v)return alert('Recovery Code দিন।');localStorage.setItem(RK,v);alert('Recovery Code পরিবর্তন হয়েছে।')}
+function createUser(){let id=$('userIdNew').value.trim(),pass=$('userPassNew').value;if(!id||!pass)return alert('User ID ও Password দিন।');let u=users();if(u.some(x=>x.id===id))return alert('এই User ID আগে থেকেই আছে।');u.push({id,pass,role:'user'});localStorage.setItem(UK,JSON.stringify(u));$('userIdNew').value='';$('userPassNew').value='';renderUsers();alert('User তৈরি হয়েছে।')}
+function renderUsers(){let u=users();$('userList').innerHTML=u.map(x=>`<div class="user-row"><span><b>${esc(x.id)}</b> <small>${x.role}</small></span>${x.role==='user'?`<button class="btn danger" onclick="deleteUser('${esc(x.id)}')">Delete</button>`:''}</div>`).join('')}
+function deleteUser(id){if(!confirm('এই User Delete করবেন?'))return;localStorage.setItem(UK,JSON.stringify(users().filter(x=>x.id!==id)));renderUsers()}
+init();
+</script>
+</body>
+</html>
