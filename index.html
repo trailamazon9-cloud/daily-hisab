@@ -197,86 +197,125 @@ input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1769aa18
 </main></div></div>
 
 <script>
-const UK='daily_pro_users',DK='daily_pro_data',RK='daily_pro_recovery',SK='daily_pro_session';
+const UK='daily_pro_users_cache',DK='daily_pro_data_cache',SK='daily_pro_session';
+const API_URL='https://script.google.com/macros/s/AKfycbwxpPuF3Dn9LiluUd_SbhdOUK5KFRRWqllwM4a-gR3BCcbXb9FbjrQNolCvIoczU10P/exec';
 let editId=null;
 const $=id=>document.getElementById(id);
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function setNow(){let d=new Date();$('date').value=d.toISOString().slice(0,10);$('time').value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
-function users(){return JSON.parse(localStorage.getItem(UK)||'[]')}
-function data(){return JSON.parse(localStorage.getItem(DK)||'[]')}
-function init(){let u=users();if(!u.length){u=[{id:'admin',pass:'1234',role:'admin'}];localStorage.setItem(UK,JSON.stringify(u))}if(!localStorage.getItem(RK))localStorage.setItem(RK,'DH-RECOVER-2026');let s=localStorage.getItem(SK),me=u.find(x=>x.id===s);if(me)openApp(me);else showLogin()}
-function showLogin(){$('loginScreen').classList.remove('hidden');$('forgotScreen').classList.add('hidden');$('app').classList.add('hidden')}
-function showForgot(){$('loginScreen').classList.add('hidden');$('forgotScreen').classList.remove('hidden');$('app').classList.add('hidden')}
-function login(){let id=$('loginId').value.trim(),pass=$('loginPass').value,me=users().find(x=>x.id===id&&x.pass===pass);if(!me){$('loginMsg').className='notice error';$('loginMsg').textContent='User ID অথবা Password ভুল।';return}localStorage.setItem(SK,me.id);openApp(me)}
-function openApp(me){$('loginScreen').classList.add('hidden');$('forgotScreen').classList.add('hidden');$('app').classList.remove('hidden');$('currentUser').textContent=me.role==='admin'?'ADMIN':'USER';$('headerDisplayName').textContent=getDisplayNameFor(me.id);$('avatar').textContent=me.id.charAt(0).toUpperCase();$('navAdmin').classList.toggle('hidden',me.role!=='admin');renderAvatar();showPage('entry')}
+function getSession(){try{return JSON.parse(localStorage.getItem(SK)||'null')}catch(e){return null}}
+function users(){try{return JSON.parse(localStorage.getItem(UK)||'[]')}catch(e){return []}}
+function data(){try{return JSON.parse(localStorage.getItem(DK)||'[]')}catch(e){return []}}
+function setUsers(u){localStorage.setItem(UK,JSON.stringify(u||[]))}
+function setData(d){localStorage.setItem(DK,JSON.stringify(d||[]))}
+async function api(action,payload={}){
+  const body={action,...payload};
+  const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),cache:'no-store'});
+  if(!res.ok) throw new Error('Server response '+res.status);
+  const out=await res.json();
+  if(!out.success) throw new Error(out.message||'Server error');
+  return out;
+}
+async function init(){
+  const s=getSession();
+  if(s&&s.token&&s.id){
+    try{
+      await refreshEntries();
+      if(s.role==='admin') await refreshUsers();
+      openApp(s);
+      return;
+    }catch(e){localStorage.removeItem(SK);}
+  }
+  showLogin();
+}
+function showLogin(){$('loginScreen').classList.remove('hidden');$('forgotScreen').classList.add('hidden');$('app').classList.add('hidden');}
+function showForgot(){$('loginScreen').classList.add('hidden');$('forgotScreen').classList.remove('hidden');$('app').classList.add('hidden');}
+async function login(){
+  const id=$('loginId').value.trim(),pass=$('loginPass').value;
+  if(!id||!pass){$('loginMsg').className='notice error';$('loginMsg').textContent='User ID এবং Password দিন।';return}
+  $('loginMsg').className='notice';$('loginMsg').textContent='Login হচ্ছে...';
+  try{
+    const out=await api('login',{id,password:pass});
+    localStorage.setItem(SK,JSON.stringify({id:out.user.id,role:out.user.role,token:out.token}));
+    await refreshEntries();
+    if(out.user.role==='admin') await refreshUsers();
+    openApp(out.user);
+  }catch(e){$('loginMsg').className='notice error';$('loginMsg').textContent=e.message||'User ID অথবা Password ভুল।'}
+}
+function openApp(me){
+  $('loginScreen').classList.add('hidden');$('forgotScreen').classList.add('hidden');$('app').classList.remove('hidden');
+  $('currentUser').textContent=me.role==='admin'?'ADMIN':'USER';
+  $('headerDisplayName').textContent=getDisplayNameFor(me.id);
+  $('avatar').textContent=me.id.charAt(0).toUpperCase();
+  $('navAdmin').classList.toggle('hidden',me.role!=='admin');
+  renderAvatar();showPage('entry');
+}
 function logout(){localStorage.removeItem(SK);showLogin()}
-function recoverAdmin(){let code=$('recoveryCode').value.trim(),id=$('newAdminId').value.trim(),pass=$('newAdminPass').value;if(code!==localStorage.getItem(RK)){$('forgotMsg').className='notice error';$('forgotMsg').textContent='Recovery Code ভুল।';return}if(!id||!pass){$('forgotMsg').className='notice error';$('forgotMsg').textContent='নতুন Admin ID ও Password দিন।';return}let u=users().filter(x=>x.role!=='admin');u.unshift({id,pass,role:'admin'});localStorage.setItem(UK,JSON.stringify(u));$('forgotMsg').className='notice ok';$('forgotMsg').textContent='Admin reset হয়েছে। নতুন ID দিয়ে Login করুন।';setTimeout(showLogin,900)}
-function showPage(page){$('entryPage').classList.toggle('hidden',page!=='entry');$('hisabPage').classList.toggle('hidden',page!=='hisab');$('profilePage').classList.toggle('hidden',page!=='profile');$('updatePage').classList.toggle('hidden',page!=='update');$('adminPage').classList.toggle('hidden',page!=='admin');$('navEntry').classList.toggle('active',page==='entry');$('navHisab').classList.toggle('active',page==='hisab');$('navProfile').classList.toggle('active',page==='profile');$('navUpdate').classList.toggle('active',page==='update');$('navAdmin').classList.toggle('active',page==='admin');if(page==='entry'){setNow();renderQuick()}if(page==='hisab')renderAll();if(page==='profile')renderProfile();if(page==='update'){updateCurrentVersionUI();}if(page==='admin'){let me=users().find(x=>x.id===localStorage.getItem(SK));if(!me||me.role!=='admin'){showPage('entry');return}$('adminIdNew').value=me.id;$('adminPassNew').value='';$('recoveryNew').value=localStorage.getItem(RK)||'';renderUsers()}}
-function saveEntry(){let n=$('name').value.trim(),a=Number($('amount').value);if(!n||!a||a<0){$('entryMsg').className='notice error';$('entryMsg').textContent='নাম ও সঠিক টাকার পরিমাণ দিন।';return}let d=data(),x={id:editId||Date.now(),name:n,date:$('date').value,time:$('time').value,amount:a,reason:$('reason').value.trim(),type:$('type').value};if(editId){let i=d.findIndex(q=>q.id==editId);if(i>=0)d[i]=x}else d.push(x);localStorage.setItem(DK,JSON.stringify(d));editId=null;$('entryMsg').className='notice ok';$('entryMsg').textContent='হিসাব সফলভাবে সংরক্ষণ হয়েছে।';clearForm(false);renderQuick()}
+async function recoverAdmin(){
+  const code=$('recoveryCode').value.trim(),id=$('newAdminId').value.trim(),pass=$('newAdminPass').value;
+  if(!code||!id||!pass){$('forgotMsg').className='notice error';$('forgotMsg').textContent='Recovery Code, নতুন Admin ID ও Password দিন।';return}
+  $('forgotMsg').className='notice';$('forgotMsg').textContent='Reset হচ্ছে...';
+  try{await api('recoverAdmin',{code,newId:id,newPassword:pass});$('forgotMsg').className='notice ok';$('forgotMsg').textContent='Admin reset হয়েছে। নতুন ID দিয়ে Login করুন।';setTimeout(showLogin,900)}catch(e){$('forgotMsg').className='notice error';$('forgotMsg').textContent=e.message}}
+function showPage(page){
+  $('entryPage').classList.toggle('hidden',page!=='entry');$('hisabPage').classList.toggle('hidden',page!=='hisab');$('profilePage').classList.toggle('hidden',page!=='profile');$('updatePage').classList.toggle('hidden',page!=='update');$('adminPage').classList.toggle('hidden',page!=='admin');
+  $('navEntry').classList.toggle('active',page==='entry');$('navHisab').classList.toggle('active',page==='hisab');$('navProfile').classList.toggle('active',page==='profile');$('navUpdate').classList.toggle('active',page==='update');$('navAdmin').classList.toggle('active',page==='admin');
+  if(page==='entry'){setNow();renderQuick()}
+  if(page==='hisab')renderAll();
+  if(page==='profile')renderProfile();
+  if(page==='update')updateCurrentVersionUI();
+  if(page==='admin'){
+    const me=getSession();if(!me||me.role!=='admin'){showPage('entry');return}
+    $('adminIdNew').value=me.id;$('adminPassNew').value='';$('recoveryNew').value='';renderUsers();refreshUsers();
+  }
+}
+async function refreshUsers(){
+  const s=getSession();if(!s||s.role!=='admin')return;
+  try{const out=await api('getUsers',{token:s.token});setUsers(out.users);renderUsers();return out.users}catch(e){if(/session expired/i.test(e.message)){localStorage.removeItem(SK);showLogin()}else console.warn(e.message)}
+}
+async function refreshEntries(){
+  const s=getSession();if(!s||!s.token)return [];
+  const out=await api('getEntries',{token:s.token});setData(out.entries||[]);return out.entries||[];
+}
+async function saveEntry(){
+  const s=getSession();if(!s||!s.token){showLogin();return}
+  const n=$('name').value.trim(),a=Number($('amount').value);
+  if(!n||!a||a<0){$('entryMsg').className='notice error';$('entryMsg').textContent='নাম ও সঠিক টাকার পরিমাণ দিন।';return}
+  const x={id:editId||String(Date.now()),name:n,date:$('date').value,time:$('time').value,amount:a,reason:$('reason').value.trim(),type:$('type').value};
+  $('entryMsg').className='notice';$('entryMsg').textContent='সংরক্ষণ হচ্ছে...';
+  try{
+    if(editId) await api('updateEntry',{token:s.token,...x}); else await api('addEntry',{token:s.token,...x});
+    await refreshEntries();editId=null;$('entryMsg').className='notice ok';$('entryMsg').textContent='হিসাব সফলভাবে সংরক্ষণ হয়েছে।';clearForm(false);renderQuick();
+  }catch(e){$('entryMsg').className='notice error';$('entryMsg').textContent=e.message||'হিসাব সংরক্ষণ করা যায়নি।'}
+}
 function clearForm(show=true){$('name').value='';$('amount').value='';$('reason').value='';$('type').value='take';editId=null;setNow();if(show)$('entryMsg').textContent=''}
 function person(d,n){let take=0,give=0;d.filter(x=>x.name.trim().toLowerCase()===n.trim().toLowerCase()).forEach(x=>x.type==='take'?take+=Number(x.amount):give+=Number(x.amount));return{take,give,balance:take-give}}
-function renderAll(){let d=data(),nf=$('filterName').value.trim().toLowerCase(),df=$('filterDate').value,rows=d.filter(x=>(!nf||x.name.toLowerCase().includes(nf))&&(!df||x.date===df)),run={};$('entryTable').innerHTML=rows.length?rows.map((x,i)=>{let k=x.name.toLowerCase();run[k]=(run[k]||0)+(x.type==='take'?Number(x.amount):-Number(x.amount));return `<tr><td>${i+1}</td><td><b>${esc(x.name)}</b></td><td>${x.date}</td><td>${x.time}</td><td>৳${Number(x.amount).toFixed(2)}</td><td><span class="badge ${x.type==='take'?'take':'give'}">${x.type==='take'?'নিয়েছি (+)':'দিয়েছি (-)'}</span></td><td>${esc(x.reason)}</td><td>৳${run[k].toFixed(2)}</td><td><button class="btn primary" onclick="editEntry(${x.id})">Edit</button> <button class="btn danger" onclick="deleteEntry(${x.id})">Delete</button></td></tr>`}).join(''):'<tr><td colspan="9" class="empty">কোনো হিসাব পাওয়া যায়নি।</td></tr>';let totalTake=d.reduce((s,x)=>s+(x.type==='take'?Number(x.amount):0),0),totalGive=d.reduce((s,x)=>s+(x.type==='give'?Number(x.amount):0),0),names=[...new Set(d.map(x=>x.name))];$('stats').innerHTML=`<div class="stat blue"><div class="label">মোট লেনদেন</div><div class="value">${d.length}</div></div><div class="stat green"><div class="label">মোট নিয়েছি</div><div class="value">৳${totalTake.toFixed(2)}</div></div><div class="stat red"><div class="label">মোট দিয়েছি</div><div class="value">৳${totalGive.toFixed(2)}</div></div><div class="stat orange"><div class="label">মোট ব্যক্তি</div><div class="value">${names.length}</div></div>`;let sn=names.filter(n=>!nf||n.toLowerCase().includes(nf));$('summaryCount').textContent=sn.length+' জন';$('summary').innerHTML=sn.length?sn.map(n=>{let p=person(d,n),b=p.balance;let cls=b>0?'status-take':b<0?'status-give':'status-even';let txt=b>0?'নিয়েছি বেশি — দেব: ৳'+b.toFixed(2):b<0?'দিয়েছি বেশি — পাবো: ৳'+(-b).toFixed(2):'হিসাব সমান — ৳0.00';return `<div class="person"><h3>${esc(n)}</h3><div class="money"><span>মোট নিয়েছি</span><b>৳${p.take.toFixed(2)}</b></div><div class="money"><span>মোট দিয়েছি</span><b>৳${p.give.toFixed(2)}</b></div><div class="result ${cls}">${txt}</div></div>`}).join(''):'<div class="empty">কোনো ব্যক্তির হিসাব নেই।</div>'}
+function renderAll(){let d=data(),nf=$('filterName').value.trim().toLowerCase(),df=$('filterDate').value,rows=d.filter(x=>(!nf||x.name.toLowerCase().includes(nf))&&(!df||x.date===df)),run={};$('entryTable').innerHTML=rows.length?rows.map((x,i)=>{let k=x.name.toLowerCase();run[k]=(run[k]||0)+(x.type==='take'?Number(x.amount):-Number(x.amount));return `<tr><td>${i+1}</td><td><b>${esc(x.name)}</b></td><td>${x.date}</td><td>${x.time}</td><td>৳${Number(x.amount).toFixed(2)}</td><td><span class="badge ${x.type==='take'?'take':'give'}">${x.type==='take'?'নিয়েছি (+)':'দিয়েছি (-)'}</span></td><td>${esc(x.reason)}</td><td>৳${run[k].toFixed(2)}</td><td><button class="btn primary" onclick="editEntry('${esc(x.id)}')">Edit</button> <button class="btn danger" onclick="deleteEntry('${esc(x.id)}')">Delete</button></td></tr>`}).join(''):'<tr><td colspan="9" class="empty">কোনো হিসাব পাওয়া যায়নি।</td></tr>';let totalTake=d.reduce((s,x)=>s+(x.type==='take'?Number(x.amount):0),0),totalGive=d.reduce((s,x)=>s+(x.type==='give'?Number(x.amount):0),0),names=[...new Set(d.map(x=>x.name))];$('stats').innerHTML=`<div class="stat blue"><div class="label">মোট লেনদেন</div><div class="value">${d.length}</div></div><div class="stat green"><div class="label">মোট নিয়েছি</div><div class="value">৳${totalTake.toFixed(2)}</div></div><div class="stat red"><div class="label">মোট দিয়েছি</div><div class="value">৳${totalGive.toFixed(2)}</div></div><div class="stat orange"><div class="label">মোট ব্যক্তি</div><div class="value">${names.length}</div></div>`;let sn=names.filter(n=>!nf||n.toLowerCase().includes(nf));$('summaryCount').textContent=sn.length+' জন';$('summary').innerHTML=sn.length?sn.map(n=>{let p=person(d,n),b=p.balance;let cls=b>0?'status-take':b<0?'status-give':'status-even';let txt=b>0?'নিয়েছি বেশি — দেব: ৳'+b.toFixed(2):b<0?'দিয়েছি বেশি — পাবো: ৳'+(-b).toFixed(2):'হিসাব সমান — ৳0.00';return `<div class="person"><h3>${esc(n)}</h3><div class="money"><span>মোট নিয়েছি</span><b>৳${p.take.toFixed(2)}</b></div><div class="money"><span>মোট দিয়েছি</span><b>৳${p.give.toFixed(2)}</b></div><div class="result ${cls}">${txt}</div></div>`}).join(''):'<div class="empty">কোনো ব্যক্তির হিসাব নেই।</div>'}
 function clearFilters(){$('filterName').value='';$('filterDate').value='';renderAll()}
-function editEntry(id){let x=data().find(a=>a.id==id);if(!x)return;showPage('entry');$('name').value=x.name;$('date').value=x.date;$('time').value=x.time;$('amount').value=x.amount;$('reason').value=x.reason||'';$('type').value=x.type;editId=id;$('entryMsg').className='notice ok';$('entryMsg').textContent='Edit mode — পরিবর্তন করে Save করুন।'}
-function deleteEntry(id){if(!confirm('এই হিসাবটি Delete করবেন?'))return;localStorage.setItem(DK,JSON.stringify(data().filter(x=>x.id!=id)));renderAll();renderQuick()}
+function editEntry(id){let x=data().find(a=>String(a.id)===String(id));if(!x)return;showPage('entry');$('name').value=x.name;$('date').value=x.date;$('time').value=x.time;$('amount').value=x.amount;$('reason').value=x.reason||'';$('type').value=x.type;editId=id;$('entryMsg').className='notice ok';$('entryMsg').textContent='Edit mode — পরিবর্তন করে Save করুন।'}
+async function deleteEntry(id){if(!confirm('এই হিসাবটি Delete করবেন?'))return;const s=getSession();if(!s||!s.token){showLogin();return}try{await api('deleteEntry',{token:s.token,id:String(id)});await refreshEntries();renderAll();renderQuick()}catch(e){alert(e.message)}}
 function renderQuick(){let q=$('quickSearch').value.trim().toLowerCase(),d=data();if(!q){$('quickResult').innerHTML='';return}let names=[...new Set(d.map(x=>x.name))].filter(n=>n.toLowerCase().includes(q));$('quickResult').innerHTML=names.length?names.map(n=>{let p=person(d,n),b=p.balance;return `<div class="person"><h3>${esc(n)}</h3><div class="money"><span>নিয়েছি</span><b>৳${p.take.toFixed(2)}</b></div><div class="money"><span>দিয়েছি</span><b>৳${p.give.toFixed(2)}</b></div><div class="result">${b>0?'দেব: ৳'+b.toFixed(2):b<0?'পাবো: ৳'+(-b).toFixed(2):'হিসাব সমান'}</div></div>`}).join(''):'<div class="empty">কিছু পাওয়া যায়নি।</div>'}
 
-
-const APP_VERSION='1.0.0';
-// Set this to your online update manifest URL when you publish updates.
-// Example: https://your-domain.com/daily-hisab-update.json
+const APP_VERSION='1.1.0';
 const UPDATE_MANIFEST_URL='https://trailamazon9-cloud.github.io/daily-hisab/update.json';
 function updateCurrentVersionUI(){if($('currentVersionText'))$('currentVersionText').textContent='v'+APP_VERSION}
-async function checkForUpdate(openPage=false){
-  if(openPage) showPage('update');
-  $('updateMsg').className='notice';
-  $('updateMsg').textContent='Update check চলছে...';
-  $('updateDetails').innerHTML='';
-  if(!UPDATE_MANIFEST_URL){
-    $('updateMsg').className='notice ok';
-    $('updateMsg').innerHTML='<span class="update-dot"></span>আপনার বর্তমান version <b>v'+APP_VERSION+'</b>। Online update server এখনো সেট করা হয়নি।';
-    $('updateDetails').innerHTML='<div class="version-box"><b>Auto Update Ready</b><ul class="release-list"><li>UPDATE button প্রস্তুত</li><li>Version checking system প্রস্তুত</li><li>Online manifest URL বসালেই নতুন version detect হবে</li></ul></div>';
-    return;
-  }
-  try{
-    const r=await fetch(UPDATE_MANIFEST_URL,{cache:'no-store'});
-    if(!r.ok) throw new Error('Update server response '+r.status);
-    const info=await r.json();
-    const latest=String(info.version||APP_VERSION).replace(/^v/,'');
-    if(compareVersions(latest,APP_VERSION)>0){
-      $('updateMsg').className='notice ok';
-      $('updateMsg').innerHTML='নতুন version পাওয়া গেছে: <b>v'+esc(latest)+'</b>';
-      let button=info.downloadUrl?'<a class="btn primary" style="display:inline-block;margin-top:12px;text-decoration:none;color:#fff" href="'+esc(info.downloadUrl)+'" target="_blank">Download Update</a>':'';
-      $('updateDetails').innerHTML='<div class="version-box"><b>New Version: v'+esc(latest)+'</b>'+(info.notes?'<div style="margin-top:7px">'+esc(info.notes)+'</div>':'')+button+'</div>';
-    }else{
-      $('updateMsg').className='notice ok';
-      $('updateMsg').textContent='আপনার software সর্বশেষ version-এ আছে।';
-    }
-  }catch(e){
-    $('updateMsg').className='notice error';
-    $('updateMsg').textContent='Update check করা যায়নি। Internet/Update URL পরীক্ষা করুন।';
-  }
-}
-function compareVersions(a,b){
-  let A=a.split('.').map(Number),B=b.split('.').map(Number),n=Math.max(A.length,B.length);
-  for(let i=0;i<n;i++){let x=A[i]||0,y=B[i]||0;if(x>y)return 1;if(x<y)return -1}return 0;
-}
+async function checkForUpdate(openPage=false){if(openPage)showPage('update');$('updateMsg').className='notice';$('updateMsg').textContent='Update check চলছে...';$('updateDetails').innerHTML='';try{const r=await fetch(UPDATE_MANIFEST_URL,{cache:'no-store'});if(!r.ok)throw new Error('Update server response '+r.status);const info=await r.json(),latest=String(info.version||APP_VERSION).replace(/^v/,'');if(compareVersions(latest,APP_VERSION)>0){$('updateMsg').className='notice ok';$('updateMsg').innerHTML='নতুন version পাওয়া গেছে: <b>v'+esc(latest)+'</b>';let button=info.downloadUrl?'<a class="btn primary" style="display:inline-block;margin-top:12px;text-decoration:none;color:#fff" href="'+esc(info.downloadUrl)+'" target="_blank">Open Latest Software</a>':'';$('updateDetails').innerHTML='<div class="version-box"><b>New Version: v'+esc(latest)+'</b>'+(info.notes?'<div style="margin-top:7px">'+esc(info.notes)+'</div>':'')+button+'</div>'}else{$('updateMsg').className='notice ok';$('updateMsg').textContent='আপনার software সর্বশেষ version-এ আছে।'}}catch(e){$('updateMsg').className='notice error';$('updateMsg').textContent='Update check করা যায়নি। Internet/Update URL পরীক্ষা করুন।'}}
+function compareVersions(a,b){let A=a.split('.').map(Number),B=b.split('.').map(Number),n=Math.max(A.length,B.length);for(let i=0;i<n;i++){let x=A[i]||0,y=B[i]||0;if(x>y)return 1;if(x<y)return -1}return 0}
 function getDisplayNameFor(id){return localStorage.getItem('daily_pro_profile_name_'+id)||id}
-function profileNameKey(){return 'daily_pro_profile_name_'+localStorage.getItem(SK)}
-function profileKey(){return 'daily_pro_photo_'+localStorage.getItem(SK)}
-function getDisplayName(){let id=localStorage.getItem(SK)||'';return localStorage.getItem(profileNameKey())||id}
-function renderAvatar(){let id=localStorage.getItem(SK)||'A',src=localStorage.getItem(profileKey()),a=$('avatar');a.innerHTML=src?'<img src="'+src+'" alt="Profile">':esc(getDisplayNameFor(id).charAt(0).toUpperCase());if($('headerDisplayName'))$('headerDisplayName').textContent=getDisplayNameFor(id)}
-function renderProfile(){let id=localStorage.getItem(SK)||'',me=users().find(x=>x.id===id),src=localStorage.getItem(profileKey()),p=$('profilePhoto'),display=getDisplayName();$('profileName').textContent=display;$('profileNameInput').value=display;$('profileRole').textContent=me&&me.role==='admin'?'ADMIN':'USER';p.innerHTML=src?'<img src="'+src+'" alt="Profile">':esc(display.charAt(0).toUpperCase())}
+function profileNameKey(){const s=getSession();return 'daily_pro_profile_name_'+(s?s.id:'')}
+function profileKey(){const s=getSession();return 'daily_pro_photo_'+(s?s.id:'')}
+function getDisplayName(){const s=getSession();let id=s?s.id:'';return localStorage.getItem(profileNameKey())||id}
+function renderAvatar(){let s=getSession(),id=s?s.id:'A',src=localStorage.getItem(profileKey()),a=$('avatar');a.innerHTML=src?'<img src="'+src+'" alt="Profile">':esc(getDisplayNameFor(id).charAt(0).toUpperCase());if($('headerDisplayName'))$('headerDisplayName').textContent=getDisplayNameFor(id)}
+function renderProfile(){let s=getSession(),id=s?s.id:'',src=localStorage.getItem(profileKey()),p=$('profilePhoto'),display=getDisplayName();$('profileName').textContent=display;$('profileNameInput').value=display;$('profileRole').textContent=s&&s.role==='admin'?'ADMIN':'USER';p.innerHTML=src?'<img src="'+src+'" alt="Profile">':esc(display.charAt(0).toUpperCase())}
 function editProfileName(){$('profileNameInput').focus();$('profileNameInput').select()}
 function saveProfileName(){let n=$('profileNameInput').value.trim();if(!n){alert('Profile Name দিন।');return}localStorage.setItem(profileNameKey(),n);renderProfile();renderAvatar();$('profileMsg').className='notice ok';$('profileMsg').textContent='Profile Name save হয়েছে।'}
 function previewProfile(e){let f=e.target.files&&e.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){alert('শুধু image file দিন।');e.target.value='';return}let r=new FileReader();r.onload=()=>{$('profilePhoto').innerHTML='<img src="'+r.result+'" alt="Profile preview">';$('profileMsg').className='notice ok';$('profileMsg').textContent='Preview ready — Save Photo চাপুন।';$('profileFile').dataset.preview=r.result};r.readAsDataURL(f)}
 function saveProfilePhoto(){let src=$('profileFile').dataset.preview;if(!src){alert('আগে একটি ছবি নির্বাচন করুন।');return}try{localStorage.setItem(profileKey(),src);renderAvatar();renderProfile();$('profileFile').value='';delete $('profileFile').dataset.preview;$('profileMsg').className='notice ok';$('profileMsg').textContent='Profile photo save হয়েছে।'}catch(e){$('profileMsg').className='notice error';$('profileMsg').textContent='ছবিটি অনেক বড়। ছোট ছবি ব্যবহার করুন।'}}
 function removeProfilePhoto(){localStorage.removeItem(profileKey());$('profileFile').value='';delete $('profileFile').dataset.preview;renderAvatar();renderProfile();$('profileMsg').className='notice ok';$('profileMsg').textContent='Profile photo remove হয়েছে।'}
-function changeAdmin(){let id=$('adminIdNew').value.trim(),pass=$('adminPassNew').value;if(!id||!pass)return alert('Admin ID ও Password দিন।');let u=users(),i=u.findIndex(x=>x.id===localStorage.getItem(SK)&&x.role==='admin');if(i<0)return;if(u.some((x,j)=>j!==i&&x.id===id))return alert('এই ID আগে থেকেই আছে।');u[i].id=id;u[i].pass=pass;localStorage.setItem(UK,JSON.stringify(u));localStorage.setItem(SK,id);alert('Admin ID/Password পরিবর্তন হয়েছে।');openApp(u[i])}
-function changeRecovery(){let v=$('recoveryNew').value.trim();if(!v)return alert('Recovery Code দিন।');localStorage.setItem(RK,v);alert('Recovery Code পরিবর্তন হয়েছে।')}
-function createUser(){let id=$('userIdNew').value.trim(),pass=$('userPassNew').value;if(!id||!pass)return alert('User ID ও Password দিন।');let u=users();if(u.some(x=>x.id===id))return alert('এই User ID আগে থেকেই আছে।');u.push({id,pass,role:'user'});localStorage.setItem(UK,JSON.stringify(u));$('userIdNew').value='';$('userPassNew').value='';renderUsers();alert('User তৈরি হয়েছে।')}
-function renderUsers(){let u=users();$('userList').innerHTML=u.map(x=>`<div class="user-row"><span><b>${esc(x.id)}</b> <small>${x.role}</small></span>${x.role==='user'?`<button class="btn danger" onclick="deleteUser('${esc(x.id)}')">Delete</button>`:''}</div>`).join('')}
-function deleteUser(id){if(!confirm('এই User Delete করবেন?'))return;localStorage.setItem(UK,JSON.stringify(users().filter(x=>x.id!==id)));renderUsers()}
+async function changeAdmin(){let id=$('adminIdNew').value.trim(),pass=$('adminPassNew').value,s=getSession();if(!s||!s.token)return showLogin();if(!id||!pass)return alert('Admin ID ও Password দিন।');try{await api('changeAdmin',{token:s.token,newId:id,newPassword:pass});localStorage.removeItem(SK);alert('Admin ID/Password পরিবর্তন হয়েছে। নতুন ID দিয়ে Login করুন।');showLogin()}catch(e){alert(e.message)}}
+async function changeRecovery(){let v=$('recoveryNew').value.trim(),s=getSession();if(!s||!s.token)return showLogin();if(!v)return alert('Recovery Code দিন।');try{await api('changeRecovery',{token:s.token,code:v});alert('Recovery Code পরিবর্তন হয়েছে।')}catch(e){alert(e.message)}}
+async function createUser(){let id=$('userIdNew').value.trim(),pass=$('userPassNew').value,s=getSession();if(!s||!s.token)return showLogin();if(!id||!pass)return alert('User ID ও Password দিন।');try{await api('createUser',{token:s.token,userId:id,password:pass});$('userIdNew').value='';$('userPassNew').value='';await refreshUsers();alert('User তৈরি হয়েছে। অন্য PC থেকেও এখন Login করা যাবে।')}catch(e){alert(e.message)}}
+function renderUsers(){let u=users();$('userList').innerHTML=u.length?u.map(x=>`<div class="user-row"><span><b>${esc(x.id)}</b> <small>${esc(x.role)}</small></span>${x.role==='user'?`<button class="btn danger" onclick="deleteUser('${esc(x.id)}')">Delete</button>`:''}</div>`).join(''):'<div class="empty">কোনো User নেই।</div>'}
+async function deleteUser(id){if(!confirm('এই User Delete করবেন?'))return;const s=getSession();if(!s||!s.token)return showLogin();try{await api('deleteUser',{token:s.token,userId:id});await refreshUsers()}catch(e){alert(e.message)}}
 init();
 </script>
 </body>
