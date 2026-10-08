@@ -62,6 +62,22 @@ input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1769aa18
 .empty{text-align:center;padding:30px;color:var(--muted)}
 @media(max-width:900px){.sidebar{width:190px}.stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:650px){.layout{display:block}.sidebar{width:100%;border-right:0;border-bottom:1px solid var(--border);display:flex;gap:5px;overflow:auto;padding:9px}.nav-title{display:none}.navbtn{white-space:nowrap;width:auto}.main{padding:16px}.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.topbar{padding:0 15px}.user-area span{display:none}.page-head{align-items:flex-start}.page-head h1{font-size:22px}}
+
+.pair-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.pair-card{border:1px solid var(--border);border-radius:12px;padding:15px;background:#fff}
+.pair-card h3{margin:0 0 8px;font-size:16px}
+.pair-card .pair-sub{font-size:12px;color:var(--muted);margin-bottom:10px}
+.pair-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid #eef2f6}
+.pair-row b{font-size:15px}
+.pair-positive{color:var(--red)}
+.pair-negative{color:var(--green)}
+.pair-even{color:var(--muted)}
+.owner-block{margin-bottom:18px}
+.owner-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.owner-title h3{margin:0}
+.owner-net{font-weight:800}
+@media(max-width:650px){.pair-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -147,7 +163,11 @@ input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1769aa18
 </div>
 <div class="table-wrap" style="margin-top:18px"><table><thead><tr><th>#</th><th>নাম</th><th>তারিখ</th><th>সময়</th><th>পরিমাণ</th><th>ধরন</th><th>বিবরণ</th><th>চলতি হিসাব</th><th>Action</th></tr></thead><tbody id="entryTable"></tbody></table></div>
 </div>
-<div class="card"><div class="summary-title"><h2 style="margin:0">ব্যক্তিভিত্তিক সারাংশ</h2><span id="summaryCount" class="summary-count">0 জন</span></div><div id="summary" class="summary-grid" style="margin-top:18px"></div></div>
+<div class="card">
+<div class="summary-title"><h2 style="margin:0">কার সাথে কার হিসাব</h2><span id="summaryCount" class="summary-count">0টি সম্পর্ক</span></div>
+<p class="profile-note" style="margin:8px 0 0">প্রতিটি User-এর হিসাব আলাদা। কার কাছ থেকে নিয়েছে বা কাকে দিয়েছে—সেই অনুযায়ী ওই ব্যক্তির সাথে বর্তমান পাওনা/দেনা দেখানো হবে।</p>
+<div id="pairSummary" style="margin-top:18px"></div>
+</div>
 </section>
 
 
@@ -208,18 +228,40 @@ function users(){try{return JSON.parse(localStorage.getItem(UK)||'[]')}catch(e){
 function data(){try{return JSON.parse(localStorage.getItem(DK)||'[]')}catch(e){return []}}
 function setUsers(u){localStorage.setItem(UK,JSON.stringify(u||[]))}
 function setData(d){localStorage.setItem(DK,JSON.stringify(d||[]))}
-let apiSeq=0;
-async function api(action,payload={}){
+let bridgeFrame=null, bridgeReady=false, bridgeSeq=0, bridgePending=new Map();
+function initBridge(){
   return new Promise((resolve,reject)=>{
-    const cb='dhcb_'+Date.now()+'_'+(++apiSeq);
-    const timer=setTimeout(()=>{cleanup();reject(new Error('Server response timeout.'))},20000);
-    function cleanup(){clearTimeout(timer);delete window[cb];if(script.parentNode)script.parentNode.removeChild(script)}
-    window[cb]=function(result){cleanup();if(result&&result.success===false)reject(new Error(result.message||'Server error'));else resolve(result)};
-    const script=document.createElement('script');
-    const request={action,...payload};
-    script.src=API_URL+'?action='+encodeURIComponent(action)+'&callback='+encodeURIComponent(cb)+'&payload='+encodeURIComponent(JSON.stringify(request));
-    script.onerror=()=>{cleanup();reject(new Error('Backend connection failed.'))};
-    document.body.appendChild(script);
+    if(bridgeFrame && bridgeReady){resolve();return}
+    const frame=document.createElement('iframe');
+    frame.style.cssText='position:fixed;width:1px;height:1px;left:-10px;top:-10px;border:0;opacity:0;pointer-events:none';
+    frame.setAttribute('aria-hidden','true');
+    frame.src=API_URL+'?bridge=1';
+    const timer=setTimeout(()=>{if(!bridgeReady)reject(new Error('Backend bridge connection timeout.'))},15000);
+    window.addEventListener('message',function onReady(ev){
+      if(ev.source!==frame.contentWindow) return;
+      if(ev.data && ev.data.type==='dh-ready'){
+        bridgeFrame=frame;bridgeReady=true;clearTimeout(timer);window.removeEventListener('message',onReady);resolve();
+      }
+    });
+    document.body.appendChild(frame);
+  });
+}
+window.addEventListener('message',function(ev){
+  const m=ev.data||{};
+  if(m.type!=='dh-response'||!m.id) return;
+  const p=bridgePending.get(m.id);
+  if(!p)return;
+  bridgePending.delete(m.id);
+  if(m.ok){try{p.resolve(JSON.parse(m.data))}catch(e){p.reject(new Error('Invalid server response'))}}
+  else p.reject(new Error(m.error||'Backend error'));
+});
+async function api(action,payload={}){
+  await initBridge();
+  return new Promise((resolve,reject)=>{
+    const id='r'+(++bridgeSeq)+'_'+Date.now();
+    const timer=setTimeout(()=>{bridgePending.delete(id);reject(new Error('Server response timeout.'))},20000);
+    bridgePending.set(id,{resolve:(v)=>{clearTimeout(timer);resolve(v)},reject:(e)=>{clearTimeout(timer);reject(e)}});
+    bridgeFrame.contentWindow.postMessage({type:'dh-request',id:id,payload:{action,...payload}},'*');
   });
 }
 async function init(){
@@ -295,13 +337,64 @@ async function saveEntry(){
 }
 function clearForm(show=true){$('name').value='';$('amount').value='';$('reason').value='';$('type').value='take';editId=null;setNow();if(show)$('entryMsg').textContent=''}
 function person(d,n){let take=0,give=0;d.filter(x=>x.name.trim().toLowerCase()===n.trim().toLowerCase()).forEach(x=>x.type==='take'?take+=Number(x.amount):give+=Number(x.amount));return{take,give,balance:take-give}}
-function renderAll(){let d=data(),nf=$('filterName').value.trim().toLowerCase(),df=$('filterDate').value,rows=d.filter(x=>(!nf||x.name.toLowerCase().includes(nf))&&(!df||x.date===df)),run={};$('entryTable').innerHTML=rows.length?rows.map((x,i)=>{let k=x.name.toLowerCase();run[k]=(run[k]||0)+(x.type==='take'?Number(x.amount):-Number(x.amount));return `<tr><td>${i+1}</td><td><b>${esc(x.name)}</b></td><td>${x.date}</td><td>${x.time}</td><td>৳${Number(x.amount).toFixed(2)}</td><td><span class="badge ${x.type==='take'?'take':'give'}">${x.type==='take'?'নিয়েছি (+)':'দিয়েছি (-)'}</span></td><td>${esc(x.reason)}</td><td>৳${run[k].toFixed(2)}</td><td><button class="btn primary" onclick="editEntry('${esc(x.id)}')">Edit</button> <button class="btn danger" onclick="deleteEntry('${esc(x.id)}')">Delete</button></td></tr>`}).join(''):'<tr><td colspan="9" class="empty">কোনো হিসাব পাওয়া যায়নি।</td></tr>';let totalTake=d.reduce((s,x)=>s+(x.type==='take'?Number(x.amount):0),0),totalGive=d.reduce((s,x)=>s+(x.type==='give'?Number(x.amount):0),0),names=[...new Set(d.map(x=>x.name))];$('stats').innerHTML=`<div class="stat blue"><div class="label">মোট লেনদেন</div><div class="value">${d.length}</div></div><div class="stat green"><div class="label">মোট নিয়েছি</div><div class="value">৳${totalTake.toFixed(2)}</div></div><div class="stat red"><div class="label">মোট দিয়েছি</div><div class="value">৳${totalGive.toFixed(2)}</div></div><div class="stat orange"><div class="label">মোট ব্যক্তি</div><div class="value">${names.length}</div></div>`;let sn=names.filter(n=>!nf||n.toLowerCase().includes(nf));$('summaryCount').textContent=sn.length+' জন';$('summary').innerHTML=sn.length?sn.map(n=>{let p=person(d,n),b=p.balance;let cls=b>0?'status-take':b<0?'status-give':'status-even';let txt=b>0?'নিয়েছি বেশি — দেব: ৳'+b.toFixed(2):b<0?'দিয়েছি বেশি — পাবো: ৳'+(-b).toFixed(2):'হিসাব সমান — ৳0.00';return `<div class="person"><h3>${esc(n)}</h3><div class="money"><span>মোট নিয়েছি</span><b>৳${p.take.toFixed(2)}</b></div><div class="money"><span>মোট দিয়েছি</span><b>৳${p.give.toFixed(2)}</b></div><div class="result ${cls}">${txt}</div></div>`}).join(''):'<div class="empty">কোনো ব্যক্তির হিসাব নেই।</div>'}
+function pairGroups(entries){
+  const groups={};
+  entries.forEach(x=>{
+    const owner=String(x.userId||x.createdBy||x.user||'—').trim()||'—';
+    const person=String(x.name||'').trim()||'—';
+    const key=owner+'\u0000'+person.toLowerCase();
+    if(!groups[key]) groups[key]={owner,person,take:0,give:0,count:0};
+    groups[key].count++;
+    if(String(x.type).toLowerCase()==='take') groups[key].take+=Number(x.amount||0);
+    else groups[key].give+=Number(x.amount||0);
+  });
+  return Object.values(groups);
+}
+function pairStatus(g){
+  const balance=g.take-g.give;
+  if(balance>0) return {balance,cls:'pair-positive',text:'দেবে',amount:balance};
+  if(balance<0) return {balance,cls:'pair-negative',text:'পাবে',amount:-balance};
+  return {balance,cls:'pair-even',text:'হিসাব সমান',amount:0};
+}
+function renderPairSummary(entries){
+  const groups=pairGroups(entries), owners={};
+  groups.forEach(g=>(owners[g.owner] ||= []).push(g));
+  const ownerNames=Object.keys(owners).sort((a,b)=>a.localeCompare(b));
+  $('summaryCount').textContent=groups.length+'টি সম্পর্ক';
+  if(!groups.length){$('pairSummary').innerHTML='<div class="empty">কোনো ব্যক্তির সাথে হিসাব পাওয়া যায়নি।</div>';return}
+  $('pairSummary').innerHTML=ownerNames.map(owner=>{
+    const gs=owners[owner].sort((a,b)=>a.person.localeCompare(b.person));
+    const totalTake=gs.reduce((n,g)=>n+g.take,0),totalGive=gs.reduce((n,g)=>n+g.give,0),net=totalTake-totalGive;
+    const netText=net>0?'দেবে ৳'+net.toFixed(2):net<0?'পাবে ৳'+(-net).toFixed(2):'হিসাব সমান';
+    return `<div class="owner-block"><div class="owner-title"><h3>${esc(owner)}</h3><span class="owner-net ${net>0?'pair-positive':net<0?'pair-negative':'pair-even'}">মোট: ${netText}</span></div><div class="pair-grid">
+      ${gs.map(g=>{const st=pairStatus(g);return `<div class="pair-card"><h3>${esc(g.person)}</h3><div class="pair-sub">${g.count}টি লেনদেন</div><div class="pair-row"><span>মোট নিয়েছি</span><b>৳${g.take.toFixed(2)}</b></div><div class="pair-row"><span>মোট দিয়েছি</span><b>৳${g.give.toFixed(2)}</b></div><div class="pair-row"><span>${st.text}</span><b class="${st.cls}">${st.amount?'৳'+st.amount.toFixed(2):'৳0.00'}</b></div></div>`}).join('')}
+    </div></div>`;
+  }).join('');
+}
+function renderAll(){
+  let d=data(),nf=$('filterName').value.trim().toLowerCase(),df=$('filterDate').value;
+  let rows=d.filter(x=>(!nf||String(x.name||'').toLowerCase().includes(nf))&&(!df||String(x.date||'')===df)),run={};
+  $('entryTable').innerHTML=rows.length?rows.map((x,i)=>{
+    let k=(String(x.userId||'')+'|'+String(x.name||'')).toLowerCase();
+    run[k]=(run[k]||0)+(x.type==='take'?Number(x.amount):-Number(x.amount));
+    let entryBy=x.userId||x.createdBy||x.user||'—',st=run[k]>0?'দেবে':run[k]<0?'পাবে':'সমান';
+    return `<tr><td>${i+1}</td><td><b>${esc(entryBy)}</b></td><td><b>${esc(x.name)}</b></td><td>${esc(formatDateDisplay(x.date))}</td><td>${esc(formatTimeDisplay(x.time))}</td><td>৳${Number(x.amount).toFixed(2)}</td><td><span class="badge ${x.type==='take'?'take':'give'}">${x.type==='take'?'নিয়েছি (+)':'দিয়েছি (-)'}</span></td><td>${esc(x.reason)}</td><td>${st}: ৳${Math.abs(run[k]).toFixed(2)}</td><td><button class="btn primary" onclick="editEntry('${esc(x.id)}')">Edit</button> <button class="btn danger" onclick="deleteEntry('${esc(x.id)}')">Delete</button></td></tr>`;
+  }).join(''):'<tr><td colspan="10" class="empty">কোনো হিসাব পাওয়া যায়নি।</td></tr>';
+  let totalTake=d.reduce((sum,x)=>sum+(x.type==='take'?Number(x.amount):0),0),totalGive=d.reduce((sum,x)=>sum+(x.type==='give'?Number(x.amount):0),0),groups=pairGroups(d);
+  $('stats').innerHTML=`<div class="stat blue"><div class="label">মোট লেনদেন</div><div class="value">${d.length}</div></div><div class="stat green"><div class="label">মোট নিয়েছি</div><div class="value">৳${totalTake.toFixed(2)}</div></div><div class="stat red"><div class="label">মোট দিয়েছি</div><div class="value">৳${totalGive.toFixed(2)}</div></div><div class="stat orange"><div class="label">মোট সম্পর্ক</div><div class="value">${groups.length}</div></div>`;
+  renderPairSummary(d);
+}
 function clearFilters(){$('filterName').value='';$('filterDate').value='';renderAll()}
 function editEntry(id){let x=data().find(a=>String(a.id)===String(id));if(!x)return;showPage('entry');$('name').value=x.name;$('date').value=x.date;$('time').value=x.time;$('amount').value=x.amount;$('reason').value=x.reason||'';$('type').value=x.type;editId=id;$('entryMsg').className='notice ok';$('entryMsg').textContent='Edit mode — পরিবর্তন করে Save করুন।'}
 async function deleteEntry(id){if(!confirm('এই হিসাবটি Delete করবেন?'))return;const s=getSession();if(!s||!s.token){showLogin();return}try{await api('deleteEntry',{token:s.token,id:String(id)});await refreshEntries();renderAll();renderQuick()}catch(e){alert(e.message)}}
-function renderQuick(){let q=$('quickSearch').value.trim().toLowerCase(),d=data();if(!q){$('quickResult').innerHTML='';return}let names=[...new Set(d.map(x=>x.name))].filter(n=>n.toLowerCase().includes(q));$('quickResult').innerHTML=names.length?names.map(n=>{let p=person(d,n),b=p.balance;return `<div class="person"><h3>${esc(n)}</h3><div class="money"><span>নিয়েছি</span><b>৳${p.take.toFixed(2)}</b></div><div class="money"><span>দিয়েছি</span><b>৳${p.give.toFixed(2)}</b></div><div class="result">${b>0?'দেব: ৳'+b.toFixed(2):b<0?'পাবো: ৳'+(-b).toFixed(2):'হিসাব সমান'}</div></div>`}).join(''):'<div class="empty">কিছু পাওয়া যায়নি।</div>'}
+function renderQuick(){
+  let q=$('quickSearch').value.trim().toLowerCase(),d=data(),me=getSession();
+  if(!q){$('quickResult').innerHTML='';return}
+  let mine=me&&me.role==='admin'?d:d.filter(x=>String(x.userId||'')===String(me&&me.id||'')),groups=pairGroups(mine).filter(g=>g.person.toLowerCase().includes(q));
+  $('quickResult').innerHTML=groups.length?groups.map(g=>{let st=pairStatus(g);return `<div class="person"><h3>${esc(g.person)}</h3><div class="money"><span>মোট নিয়েছি</span><b>৳${g.take.toFixed(2)}</b></div><div class="money"><span>মোট দিয়েছি</span><b>৳${g.give.toFixed(2)}</b></div><div class="result ${st.cls}">${st.text}: ৳${st.amount.toFixed(2)}</div></div>`}).join(''):'<div class="empty">কিছু পাওয়া যায়নি।</div>'
+}
 
-const APP_VERSION='1.4.0';
+const APP_VERSION='1.2.0';
 const UPDATE_MANIFEST_URL='https://trailamazon9-cloud.github.io/daily-hisab/update.json';
 function updateCurrentVersionUI(){if($('currentVersionText'))$('currentVersionText').textContent='v'+APP_VERSION}
 async function checkForUpdate(openPage=false){if(openPage)showPage('update');$('updateMsg').className='notice';$('updateMsg').textContent='Update check চলছে...';$('updateDetails').innerHTML='';try{const r=await fetch(UPDATE_MANIFEST_URL,{cache:'no-store'});if(!r.ok)throw new Error('Update server response '+r.status);const info=await r.json(),latest=String(info.version||APP_VERSION).replace(/^v/,'');if(compareVersions(latest,APP_VERSION)>0){$('updateMsg').className='notice ok';$('updateMsg').innerHTML='নতুন version পাওয়া গেছে: <b>v'+esc(latest)+'</b>';let button=info.downloadUrl?'<a class="btn primary" style="display:inline-block;margin-top:12px;text-decoration:none;color:#fff" href="'+esc(info.downloadUrl)+'" target="_blank">Open Latest Software</a>':'';$('updateDetails').innerHTML='<div class="version-box"><b>New Version: v'+esc(latest)+'</b>'+(info.notes?'<div style="margin-top:7px">'+esc(info.notes)+'</div>':'')+button+'</div>'}else{$('updateMsg').className='notice ok';$('updateMsg').textContent='আপনার software সর্বশেষ version-এ আছে।'}}catch(e){$('updateMsg').className='notice error';$('updateMsg').textContent='Update check করা যায়নি। Internet/Update URL পরীক্ষা করুন।'}}
