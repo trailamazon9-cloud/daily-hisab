@@ -1,6 +1,5 @@
 {
-  "version": "1.4.0",
-  "notes": "Admin can now view all users' entries online.",
+  "version": "1.6.0",
+  "notes": "Pair-wise হিসাব: User-wise কার সাথে কত পাবে/দেবে; Admin সব User-এর হিসাব দেখতে পারবে.",
   "downloadUrl": "https://trailamazon9-cloud.github.io/daily-hisab/"
 }
-
