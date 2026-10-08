@@ -1,5 +1,6 @@
 {
-  "version": "1.3.0",
-  "notes": "Daily Hisab CORS-free online backend connection update",
+  "version": "1.4.0",
+  "notes": "Admin can now view all users' entries online.",
   "downloadUrl": "https://trailamazon9-cloud.github.io/daily-hisab/"
 }
+
